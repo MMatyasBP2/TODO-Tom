@@ -1,0 +1,211 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[magyar]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\IfFileExists{listings.sty}{%
+  \usepackage{listings}
+}{%
+  \usepackage{verbatim}
+  \newcommand{\lstset}[1]{}
+  \newcommand{\lstdefinestyle}[2]{}
+  \newcommand{\lstdefinelanguage}[2]{}
+  \newcommand{\lstinputlisting}[2][]{%
+    \par\noindent\textbf{[Kodfajl hivatkozas]} \texttt{#2}\par
+    \verbatiminput{#2}
+  }
+}
+
+\geometry{margin=2.5cm}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={TODO Tom dokumentacio},
+  pdfauthor={TODO Tom projekt}
+}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codecomment}{RGB}{0,128,0}
+\definecolor{codestring}{RGB}{163,21,21}
+\definecolor{codekeyword}{RGB}{0,0,180}
+
+\lstdefinelanguage{Kotlin}{
+  morekeywords={package,import,class,interface,object,data,sealed,enum,fun,val,var,
+    if,else,when,for,while,do,return,try,catch,finally,throw,public,private,
+    protected,internal,open,abstract,override,companion,this,super,true,false,
+    null,in,is,as,typealias,where,suspend,inline,noinline,crossinline,reified,
+    by,get,set,constructor,init},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]'
+}
+
+\lstdefinestyle{todotom}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  showstringspaces=false,
+  keywordstyle=\color{codekeyword}\bfseries,
+  commentstyle=\color{codecomment},
+  stringstyle=\color{codestring},
+  numbers=left,
+  numberstyle=\tiny,
+  numbersep=8pt,
+  captionpos=b
+}
+
+\lstset{style=todotom}
+
+\title{TODO Tom alkalmazás}
+\author{Készítette: Martinák Mátyás}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Bevezetés}
+A TODO Tom egy Kotlin alapú, kétrétegű alkalmazás: egy Spring Boot backendből és egy Android (Jetpack Compose) frontendből áll. A rendszer célja klasszikus TODO funkcionalitás biztosításán túl olyan haladó funkciók kezelése, mint a prioritási szintek, határidők, emlékeztetők, automatikus kategóriába sorolás és ismétlődő feladatok.
+
+A dokumentáció célja, hogy a rendszer architektúráját, fő állományait és működési logikáját részletesen bemutassa, miközben a kritikus forráskód-állományokat közvetlenül is becsatolja. A dokumentum a szakdolgozati felépítés logikáját követi: elméleti áttekintés + implementációs részletek + tesztelés + összegzés.
+
+\section{Rendszeráttekintés}
+\subsection{Technológiai stack}
+\begin{itemize}
+  \item Backend: Kotlin, Spring Boot, Spring Web, Spring Data JPA, SQLite
+  \item Frontend: Android, Kotlin, Jetpack Compose, Retrofit, WorkManager
+  \item Kommunikáció: REST API (JSON)
+  \item Adattárolás: lokális SQLite adatbázis (\texttt{taskmanager.db})
+\end{itemize}
+
+\subsection{Magas szintű működés}
+\begin{enumerate}
+  \item A felhasználó a mobil kliensben létrehoz/módosít egy feladatot.
+  \item A frontend Retrofit segítségével HTTP kérést küld a backendnek.
+  \item A backend Controller -- Service -- Repository lánban feldolgozza a kérést.
+  \item A JPA/SQLite réteg perzisztálja a változást.
+  \item A frontend frissíti az UI állapotot, szükség esetén emlékeztetőt ütemez.
+\end{enumerate}
+
+\section{Backend struktúra felépítése}
+\subsection{Build és konfigurációs állományok}
+A backend build-folyamata és függőségei a \texttt{build.gradle.kts} állományban vannak definiálva. A projektnév a \texttt{settings.gradle.kts}-ben, míg a futási paraméterek az \texttt{application.yml}-ben találhatók.
+
+\subsection{Alkalmazás indítópont}
+A \texttt{TaskManagerApplication.kt} az alkalmazás bootstrap osztálya. Itt történik a Spring kontextus inicializálása és az időzített folyamatok engedélyezése.
+
+
+\subsection{Domain modell és API szerződés}
+A \texttt{Task.kt} tartalmazza az entitásmodell definícióját, beleértve az enumerátorokat (prioritás, kategória, ismétlődés). A \texttt{TaskDtos.kt} a klienssel cserélt request/response modelleket írja le.
+
+\subsection{REST végpontok és hibakezelés}
+A \texttt{TaskController.kt} adja a CRUD végpontokat. A hibakezelés két komponensre oszlik: \texttt{TaskNotFoundException.kt} (domain kivétel) és \texttt{TaskErrorHandler.kt} (egységes API hibaválasz).
+
+\subsection{Üzleti logika és perzisztencia}
+A \texttt{TaskService.kt} kezeli a tényleges üzleti szabályokat: normalizálás, auto-kategorizálás, állapotváltás. A \texttt{TaskRepository.kt} biztosítja az adatelést JPA-n keresztül.
+
+\subsection{Időzített működés és séma migráció}
+A \texttt{TaskRecurrenceScheduler.kt} időzített módon generálja az ismétlődő feladatok következő példányait. A \texttt{TaskSchemaMigration.kt} gondoskodik róla, hogy frissítéskor a szükséges oszlopok létrejöjjenek az SQLite táblában.
+
+\section{Frontend felépítése}
+\subsection{Android projekt konfigurálás}
+A frontend külön Android projektben van. A plugin- és modulbeállításokat az alábbi állományok tartalmazzák:
+
+\subsection{UI és klienlogika}
+A \texttt{MainActivity.kt} egyesíti a klienst: API modellek, Retrofit interfész, ViewModel, Compose UI komponensek, valamint a létrehozás/szerkesztés/törlés/státusz váltási folyamatokat.
+client/app/src/main/java/com/todo/mobile/MainActivity.kt
+
+\subsection{Emlékeztető infrastruktúra}
+A \texttt{ReminderWorker.kt} WorkManager alapú background worker, amely rendszertesítéseket küld az időzített emlékeztetőkről.
+
+\section{Frontend használat -- teljes UI bemutatás}
+\subsection{Fő képernyő elemei}
+A mobil képernyő fő elemei:
+\begin{itemize}
+  \item Top bar: alkalmazáscím (TODO Tom)
+  \item New task panel (Expand/Collapse)
+  \item Input mezők: Title, Description
+  \item Választó elemek: Priority, Category, Recurrence
+  \item Dátum/idő elemek: Due date, Reminder
+  \item Action gomb: Create task
+  \item Két lista: To Do és Done
+  \item Task action chipek: Mark done / Move back to TODO, Edit, Delete
+\end{itemize}
+
+\subsection{Task létrehozása -- kattintási folyamat}
+\begin{enumerate}
+  \item Kattints a \texttt{New task} panelnél az \texttt{Expand} gombra.
+  \item Töltse ki a \texttt{Title} mezőt (ez kötelező).
+  \item Opcionálisan add meg a \texttt{Description} tartalmat.
+  \item Állítsd be a \texttt{Priority}, \texttt{Category}, \texttt{Recurrence} értékeket.
+  \item Opcionálisan válassz \texttt{Due date} és \texttt{Reminder} időpontot.
+  \item Kattints a \texttt{Create task} gombra.
+\end{enumerate}
+
+\subsection{Task módosítása -- kattintási folyamat}
+\begin{enumerate}
+  \item Válaszd ki a csempét a \texttt{To Do} vagy \texttt{Done} listából.
+  \item Kattints az \texttt{Edit} chipre.
+  \item Az \texttt{Edit task} párbeszédben módosítsd a mezőket.
+  \item Kattints \texttt{Save} a mentéshez vagy \texttt{Cancel} a megszakításhoz.
+\end{enumerate}
+
+\subsection{Task késszerre jelölése / visszaállítása}
+\begin{enumerate}
+  \item A \texttt{To Do} listában kattints a \texttt{Mark done} chipre.
+  \item A feladat átkerül a \texttt{Done} listába.
+  \item Visszaállítás esetén a \texttt{Done} listában kattints a \texttt{Move back to TODO} chipre.
+\end{enumerate}
+
+\subsection{Task törlése}
+\begin{enumerate}
+  \item Kattints a task csempére vagy a \texttt{Delete} chipre.
+  \item A megerősítő ablakban válaszd a \texttt{Delete} lehetőséget.
+  \item Megszakítás esetén kattints \texttt{Cancel}. 
+\end{enumerate}
+
+\subsection{Képhely-javaslatok (te csatolod a képeket)}
+\begin{itemize}
+  \item Fő képernyő teljes áttekintés
+  \item New task panel nyitott állapot
+  \item Kitöltött létrehozó űrlap
+  \item Edit task párbeszéd
+  \item To Do -> Done státusz váltás
+  \item Delete megerősítő ablak
+\end{itemize}
+
+\section{Tesztelés}
+\subsection{Jelenlegi állapot}
+A projektben jelenleg explicit unit/integration tesztcsomag nem található. A validáció leginkább funkcionális manuális futtatással történt:
+\begin{itemize}
+  \item Backend CRUD végpontok ellenőrzése
+  \item SQLite perzisztencia és migráció validálása
+  \item Android oldali létrehozás/szerkesztés/törlés/státusz váltás tesztelése
+  \item Emlékeztető folyamat (WorkManager + notification) ellenőrzése
+\end{itemize}
+
+\subsection{Javasolt automatizált tesztstratégia}
+\begin{itemize}
+  \item Backend unit tesztek a \texttt{TaskService} logikára
+  \item MockMvc integrációs tesztek REST végpontokra
+  \item Scheduler tesztek a recurrence generálási logikára
+  \item Android ViewModel és Compose UI tesztek
+  \item Worker tesztek a reminder folyamatra
+\end{itemize}
+
+\section{Összefoglalás}
+A TODO Tom egy jól strukturált, gyakorlati alkalmazás, amelyben a backend és frontend felelősségi köre tisztán elválik. A dokumentált forráskód alapján a rendszer legnagyobb erőssége a gyakorlati használhatóság és a bővíthetőség: az alap CRUD folyamatok mellett haladó funkcióval is rendelkezik.
+
+A következő minőségi lépés a teljes körű automatizált tesztelés bevezetése, valamint az API formális szerződésének (pl. OpenAPI) publikálása lehet.
+
+\end{document}
